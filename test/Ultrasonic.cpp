@@ -1,19 +1,27 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#include <LCDIC2.h>
+#include <Ultrasonic.h>
 
+//wifi
 const char* ssid = "Qualqueruma";
 const char* password = "33379281";
 IPAddress mqtt_server(192, 168, 0, 100);
-
 WiFiClient espClient;
 PubSubClient client(espClient);
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE	(50)
 char msg[MSG_BUFFER_SIZE];
-int value = 0;
 
-LCDIC2 lcd(0x27, 16, 2);
+//ultrasonic
+#define INTERVALO_LEITURA 250 //(ms)
+#define PIN_TRIGGER   4
+#define PIN_ECHO      5
+Ultrasonic ultrasonic(PIN_TRIGGER, PIN_ECHO);
+
+int getDistance(){
+    return ultrasonic.read();
+}
+
 
 void setup_wifi() {
 
@@ -48,8 +56,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print((char)payload[i]);
     temp += (char)payload[i];
   }
-  lcd.clear();
-  lcd.print(temp);
   Serial.println();
 
   // Switch on the LED if an 1 was received as first character
@@ -66,17 +72,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
-    lcd.print("Attempting MQTT connection...");
     // Create a random client ID
-    String clientId = "ESP8266Client-";
+    String clientId = "Ultrasonic";
     clientId += String(random(0xffff), HEX);
     // Attempt to connect
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish("outTopic", "hello world");
+      client.publish("getUltrasom", "hello world");
       // ... and resubscribe
-      client.subscribe("inTopic");
+      client.subscribe("inUltrassom");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -87,8 +92,6 @@ void reconnect() {
   }
 }
 void setup() {
-
-  if (lcd.begin()) lcd.print("Hello, World!");
 
   pinMode(LED_BUILTIN,OUTPUT);
 
@@ -107,11 +110,11 @@ void loop() {
   unsigned long now = millis();
   if (now - lastMsg > 2000) {
     lastMsg = now;
-    ++value;
-    snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
+    int value = getDistance();
+    snprintf (msg, MSG_BUFFER_SIZE, "Sensor de ultrassom #%i cm", value);
     Serial.print("Publish message: ");
     Serial.println(msg);
-    client.publish("outTopic", msg);
+    client.publish("getUltrassom", msg);
   }
 }
 
