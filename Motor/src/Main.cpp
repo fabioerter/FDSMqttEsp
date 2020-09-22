@@ -1,6 +1,8 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#include <Ultrasonic.h>
+
+#define motor D1
+
 
 //wifi
 const char* ssid = "Qualqueruma";
@@ -16,14 +18,11 @@ char msg[MSG_BUFFER_SIZE];
 #define INTERVALO_LEITURA 250 //(ms)
 #define PIN_TRIGGER   4
 #define PIN_ECHO      5
-Ultrasonic ultrasonic(PIN_TRIGGER, PIN_ECHO);
 
-int getDistance(){
-    return ultrasonic.read();
-}
 
 
 void setup_wifi() {
+
 
   delay(10);
   // We start by connecting to a WiFi network
@@ -57,7 +56,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
     temp += (char)payload[i];
   }
   Serial.println();
-
+  if (temp == "mon"){
+     digitalWrite(motor, HIGH);
+  }
+  else
+  {
+    digitalWrite(motor,LOW);
+  }
+  
   // Switch on the LED if an 1 was received as first character
   if ((char)payload[0] == '1') {
     digitalWrite(LED_BUILTIN, LOW);   // Turn the LED on (Note that LOW is the voltage level
@@ -78,10 +84,8 @@ void reconnect() {
     // Attempt to connect
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
-      // Once connected, publish an announcement...
-      client.publish("getUltrasom", "hello world");
       // ... and resubscribe
-      client.subscribe("inUltrassom");
+      client.subscribe("inMotor");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -95,6 +99,8 @@ void setup() {
 
   pinMode(LED_BUILTIN,OUTPUT);
 
+  pinMode(motor,OUTPUT);
+
   Serial.begin(115200);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -106,15 +112,4 @@ void loop() {
     reconnect();
   }
   client.loop();
-
-  unsigned long now = millis();
-  if (now - lastMsg > 2000) {
-    lastMsg = now;
-    int value = getDistance();
-    snprintf (msg, MSG_BUFFER_SIZE, "Sensor de ultrassom #%i cm", value);
-    Serial.print("Publish message: ");
-    Serial.println(msg);
-    client.publish("getUltrassom", msg);
-  }
 }
-
