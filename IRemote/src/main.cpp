@@ -1,8 +1,8 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <IRremoteESP8266.h>
-
-//wifi
+#define RECV_PIN D8
+/* //wifi
 const char* ssid = "Qualqueruma";
 const char* password = "33379281";
 IPAddress mqtt_server(192, 168, 0, 100);
@@ -14,8 +14,7 @@ char msg[MSG_BUFFER_SIZE];
 
 #define RECV_PIN D8
 
-IRrecv irrecv(RECV_PIN); //VARIÁVEL DO TIPO IRrecv
-
+ //VARIÁVEL DO TIPO IRrecv
 decode_results results; //VARIÁVEL QUE ARMAZENA OS RESULTADOS
 
 //MÉTODO RESPONSÁVEL POR FAZER A DECODIFICAÇÃO DO SINAL IR RECEBIDO
@@ -92,5 +91,22 @@ void loop() {
     Serial.println(results.value, HEX);
     dump(&results);
     irrecv.resume(); //RECEBE O PRÓXIMO VALOR
+  } */
+//}
+
+IRrecv irrecv(RECV_PIN);
+decode_results results;
+int i = 0;
+void setup(){
+  Serial.begin(9600);
+  irrecv.enableIRIn();
+}
+
+void loop(){
+  if (irrecv.decode(&results)){
+        Serial.println(results.value, HEX);
+        Serial.println(results.value, DEC);
+        irrecv.resume();
+        Serial.println();
   }
 }

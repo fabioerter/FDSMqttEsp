@@ -19,7 +19,9 @@ char msg[MSG_BUFFER_SIZE];
 #define PIN_TRIGGER   4
 #define PIN_ECHO      5
 
-
+bool status = false;
+#define STATUS_TIMER 50//tempo de publicacao do estado do motor em ms
+unsigned long lastExecute;
 
 void setup_wifi() {
 
@@ -57,10 +59,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println();
   if (temp == "mon"){
+    status = true;
      digitalWrite(motor, HIGH);
   }
-  else
+  else if(temp == "moff")
   {
+    status = false;
     digitalWrite(motor,LOW);
   }
   
@@ -80,7 +84,6 @@ void reconnect() {
   while (!client.connected()) {
     // Create a random client ID
     String clientId = "Ultrasonic";
-    clientId += String(random(0xffff), HEX);
     // Attempt to connect
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
@@ -101,13 +104,23 @@ void setup() {
 
   pinMode(motor,OUTPUT);
 
-  Serial.begin(115200);
+  lastExecute = millis();
+  Serial.begin(9600);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 }
 
+///Função para enviar o estado do motor ao topico
+void publishStatus(){
+  client.publish("MotorOut",((String)status).c_str());
+  Serial.println("Estado enviado: " + (String)status);
+}
+
+
+
 void loop() {
+  //if ((millis()-lastExecute)>STATUS_TIMER) publishStatus();
   if (!client.connected()) {
     reconnect();
   }
