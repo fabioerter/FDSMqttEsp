@@ -6,12 +6,25 @@ const char* ssid = "Qualqueruma";
 const char* password = "33379281";
 IPAddress mqtt_server(192, 168, 0, 100);
 
+//luz
+#define LUZ D7
+#define STATUS_TIMER 100 //tempo de atualização do estado da lampada
+bool status = false;
+unsigned long lastExecute;
+
+
+//wifi
 WiFiClient espClient;
 PubSubClient client(espClient);
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE	(50)
 char msg[MSG_BUFFER_SIZE];
-int value = 0;
+
+#define LDR_PIN A0
+
+int ldrValue;
+
+String text = "hello world";
 
 LCDIC2 lcd(0x27, 16, 2);
 
@@ -40,27 +53,49 @@ void setup_wifi() {
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
-  String temp;
+  String text = "";
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
   for (int i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
-    temp += (char)payload[i];
-  }
-  lcd.clear();
-  lcd.print(temp);
-  Serial.println();
-
-  // Switch on the LED if an 1 was received as first character
-  if ((char)payload[0] == '1') {
-    digitalWrite(LED_BUILTIN, LOW);   // Turn the LED on (Note that LOW is the voltage level
-    // but actually the LED is on; this is because
-    // it is active low on the ESP-01)
-  } else {
-    digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
+    text += (char)payload[i];
   }
 
+  if(strcmp(topic, "homie/Esp8266a/display/text/set") == 0){
+    lcd.clear();
+    lcd.print(text);
+    client.publish("homie/Esp8266a/display/text", text.c_str(), true);
+    Serial.println();
+  }
+  else if(strcmp(topic, "homie/Esp8266a/luz/estatus/set") == 0)
+  {
+    if (text == "true"){
+      status = true;
+      digitalWrite(LUZ, HIGH);
+      Serial.println("Luz ligada");
+    }
+    else if(text == "false"){
+      status = false;
+      digitalWrite(LUZ, LOW);
+    }
+    else
+    {
+      Serial.print(topic);
+      Serial.println(",  " + text);
+    }
+    
+  }
+  
+}
+
+void publishStatus(){
+  if (status)
+  client.publish("homie/Esp8266a/luz/estatus","true");
+  else
+  {
+    client.publish("homie/Esp8266a/luz/estatus","false");
+  }
 }
 
 void reconnect() {
@@ -74,9 +109,32 @@ void reconnect() {
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish("outTopic", "hello world");
+      client.publish("homie/Esp8266a/$homie", "3.0", true);
+      client.publish("homie/Esp8266a/$name", "Esp8266a", true);
+      client.publish("homie/Esp8266a/$state", "init", true);
+      client.publish("homie/Esp8266a/$nodes", "display,ldr,luz", true);
+      client.publish("homie/Esp8266a/luz/$name", "luz", true);
+      client.publish("homie/Esp8266a/luz/$properties", "estatus", true);
+      client.publish("homie/Esp8266a/luz/estatus/$name", "estatus", true);
+      client.publish("homie/Esp8266a/luz/estatus/$datatype", "boolean", true);
+      client.publish("homie/Esp8266a/luz/estatus/$settable", "true", true);
+      client.publish("homie/Esp8266a/display/$name", "display", true);
+      client.publish("homie/Esp8266a/display/$properties", "text", true);
+      client.publish("homie/Esp8266a/display/text", ((String)ldrValue).c_str(), true);
+      client.publish("homie/Esp8266a/display/text/$name", "text", true);
+      client.publish("homie/Esp8266a/display/text/$datatype", "string", true);
+      client.publish("homie/Esp8266a/display/text/$settable", "true", true);
+      client.publish("homie/Esp8266a/ldr/$name", "ldr", true);
+      client.publish("homie/Esp8266a/ldr/$properties", "luminosidade", true);
+      client.publish("homie/Esp8266a/ldr/luminosidade", text.c_str(), true);
+      client.publish("homie/Esp8266a/ldr/luminosidade/$name", "luminosidade", true);
+      client.publish("homie/Esp8266a/ldr/luminosidade/$datatype", "integer", true);
+      client.publish("homie/Esp8266a/ldr/luminosidade/$settable", "false", true);
+      client.publish("homie/Esp8266a/$state", "ready", true);
+      client.publish("homie/Esp8266a/$stats/interval", "6", true);
       // ... and resubscribe
-      client.subscribe("inTopic");
+      client.subscribe("homie/Esp8266a/luz/estatus/set");
+      client.subscribe("homie/Esp8266a/display/text/set");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -88,11 +146,12 @@ void reconnect() {
 }
 void setup() {
 
-  if (lcd.begin()) lcd.print("Hello, World!");
+  if (lcd.begin()) lcd.print(text);
 
   pinMode(LED_BUILTIN,OUTPUT);
-
-  Serial.begin(115200);
+  pinMode(LUZ,OUTPUT);
+  pinMode(LDR_PIN,INPUT);
+  Serial.begin(9600);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
@@ -105,13 +164,18 @@ void loop() {
   client.loop();
 
   unsigned long now = millis();
-  if (now - lastMsg > 2000) {
-    lastMsg = now;
-    ++value;
-    snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
-    Serial.print("Publish message: ");
-    Serial.println(msg);
-    client.publish("outTopic", msg);
+
+  if (now - lastMsg > 1000) {
+  lastMsg = now;
+  ldrValue = analogRead(LDR_PIN);
+  Serial.print("LDR VALUE: ");
+  Serial.println(((String)ldrValue).c_str());
+  client.publish("homie/Esp8266a/ldr/luminosidade", ((String)ldrValue).c_str());
+  client.publish("homie/Esp8266a/$state", "ready");
+  }
+  if ((millis()-lastExecute)>STATUS_TIMER) {
+    lastExecute = millis();
+    publishStatus();
   }
 }
 

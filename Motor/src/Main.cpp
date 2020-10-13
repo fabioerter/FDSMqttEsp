@@ -20,7 +20,7 @@ char msg[MSG_BUFFER_SIZE];
 #define PIN_ECHO      5
 
 bool status = false;
-#define STATUS_TIMER 50//tempo de publicacao do estado do motor em ms
+#define STATUS_TIMER 1000//tempo de publicacao do estado do motor em ms
 unsigned long lastExecute;
 
 void setup_wifi() {
@@ -58,11 +58,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
     temp += (char)payload[i];
   }
   Serial.println();
-  if (temp == "mon"){
+  if (temp == "true"){
     status = true;
      digitalWrite(motor, HIGH);
   }
-  else if(temp == "moff")
+  else if(temp == "false")
   {
     status = false;
     digitalWrite(motor,LOW);
@@ -88,7 +88,17 @@ void reconnect() {
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
       // ... and resubscribe
-      client.subscribe("inMotor");
+      client.publish("homie/Esp8266b/$homie", "3.0", true);
+      client.publish("homie/Esp8266b/$name", "Esp8266b", true);
+      client.publish("homie/Esp8266b/$state", "ready", true);
+      client.publish("homie/Esp8266b/$nodes", "motor", true);
+      client.publish("homie/Esp8266b/motor/$name", "motor", true);
+      client.publish("homie/Esp8266b/motor/$properties", "estatus", true);
+      client.publish("homie/Esp8266b/motor/estatus", "", true);
+      client.publish("homie/Esp8266b/motor/estatus/$name", "estatus", true);
+      client.publish("homie/Esp8266b/motor/estatus/$datatype", "boolean", true);
+      client.publish("homie/Esp8266b/motor/estatus/$settable", "true", true);
+      client.subscribe("homie/Esp8266b/motor/estatus/set");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -113,16 +123,26 @@ void setup() {
 
 ///Função para enviar o estado do motor ao topico
 void publishStatus(){
-  client.publish("MotorOut",((String)status).c_str());
+  if (status)
+  client.publish("homie/Esp8266b/motor/estatus","true");
+  else
+  {
+    client.publish("homie/Esp8266b/motor/estatus","false");
+  }
+  client.publish("homie/Esp8266b/$state", "ready", true);
   Serial.println("Estado enviado: " + (String)status);
 }
 
 
 
 void loop() {
-  //if ((millis()-lastExecute)>STATUS_TIMER) publishStatus();
+  
   if (!client.connected()) {
     reconnect();
+  }
+  if ((millis()-lastExecute)>STATUS_TIMER) {
+    lastExecute = millis();
+    publishStatus();
   }
   client.loop();
 }
