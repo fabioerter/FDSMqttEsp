@@ -1,0 +1,27 @@
+{
+	"folders": [
+		{
+			"path": "OtaTest"
+		},
+		{
+			"path": "display"
+		},
+		{
+			"path": "IRemote"
+		},
+		{
+			"path": "IRemoteReceiver"
+		},
+		{
+			"path": "Motor"
+		},
+		{
+			"path": "esp32cam"
+		},
+		{
+			"name": "Ultrasonic",
+			"path": "..\\..\\Users\\MSI TITAN\\OneDrive\\Documentos\\PlatformIO\\Projects\\Ultrasonic"
+		}
+	],
+	"settings": {}
+}
